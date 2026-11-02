@@ -1,0 +1,1393 @@
+---
+title: "Water Quality Analysis in North England, 2023–2025"
+subtitle: "DSC8001 Data Handling Project"
+author: "Wisdom Owogoga Ogbeche"
+date: 2026-10-30
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    code-tools: true
+    embed-resources: true
+    theme: flatly
+    fig-width: 9
+    fig-height: 5
+    include-in-header:
+      text: |
+        <style>
+          figcaption {
+            text-align: center;
+          }
+
+          caption {
+            text-align: center;
+          }
+        </style>
+editor: visual
+
+execute:
+  warning: false
+  message: false
+---
+
+```{r}
+#| label: setup
+#| include: false
+
+library(tidyverse)
+library(scales)
+library(rstatix)
+library(knitr)
+
+theme_set(theme_minimal(base_size = 12))
+
+# Detection-limit rule for censored results ("<0.1",   etc)
+CENSOR_FACTOR <- 0.5
+```
+
+# Business Understanding
+
+## Project Background and Objectives
+
+Water-quality monitoring produces measurements that can help identify patterns in the condition of water bodies. This project uses three datasets provided for the DSC8001 Data Handling Project, covering 2023, 2024 and 2025, to explore variations in recorded water-quality measurements.
+
+### Research question
+
+**Did river water quality in North England improve or decline between 2023 and 2025, and which catchments and pollutants drive the change?**
+
+### Objectives
+
+The project aims to:
+
+1.  Assess the structure, coverage and quality of the datasets.
+
+2.  Compare key river water-quality indicators across 2023, 2024 and 2025.
+
+3.  Compare water quality patterns across the selected catchments and assess how they changed between 2023 and 2025.
+
+4.  Communicate findings, limitations and potential implications through clear tables, visualisations and a reproducible report.
+
+## Situation Assessment
+
+The project will use R for data analysis, `dplyr` for data manipulation, `ggplot2` for visualisation, Quarto for reporting and Git for version control. The main constraints are the assignment deadline, data quality and the availability of comparable measurements across the three years.
+
+## Stakeholders
+
+Stakeholders include environmental monitoring agencies, water resource managers, policymakers and researchers interested in water quality. The findings may help them understand patterns in the available records and identify areas for further investigation.
+
+## Goals and Success Criteria
+
+The goal is to identify meaningful patterns in selected water-quality measurements between 2023 and 2025.
+
+Success would be evaluated based on;
+
+- The analysis will compare water quality indicators across 2023, 2024 and 2025, identify statistically significant changes, and report effect sizes to measure the magnitude of these changes.
+
+- The report will identify changes in water quality across the Northumberland & Tyne and Wear & Tees catchments, using clearly labelled tables and figures to present the findings and discussing limitations that may affect their interpretation.
+
+## Preliminary Project Plan
+
+The analysis followed the CRISP-DM methodology, which provides a structured approach to data understanding, data preparation, analysis, evaluation and reporting (Chapman et al., 2000)
+
+The datasets will first be examined for structure, coverage and quality. Suitable observations will then be prepared for exploratory analysis using descriptive statistics, tables and visualisations. The results will be evaluated against the research question before the findings are communicated through a rendered Quarto HTML report. The plan will be refined as the analysis progresses.
+
+# Data Understanding
+
+## Data Collection
+
+The project uses three water-quality datasets provided for the DSC8001 Data Handling Project, covering 2023, 2024 and 2025. The files are stored in the project's `Data` directory.
+
+The datasets are `WaterQuality23.csv`, `WaterQuality24.csv` and `WaterQuality25.csv`. They contain information about sampling locations, sampling dates, measured determinands, recorded results and measurement units.
+
+```{r}
+#| code-fold: true
+#| code-summary: "Code"
+
+# Import the three datasets and store in variables
+water23 <- read_csv("Data/WaterQuality23.csv", show_col_types = FALSE)
+water24 <- read_csv("Data/WaterQuality24.csv", show_col_types = FALSE)
+water25 <- read_csv("Data/WaterQuality25.csv", show_col_types = FALSE)
+```
+
+## Initial Data Description
+
+Initial data inspection was conducted to examine the structure of each dataset, identify the available variables and their data types, and determine the number of observations and variables recorded in each year.
+
+### 2023 Dataset
+
+```{r}
+#| code-fold: true
+#| code-summary: "Code"
+
+# Inspect sample records to understand the 2023 dataset's contents
+head(water23)
+
+# Check the number of rows and columns in the 2023 dataset
+dim(water23)
+
+# Check variable types of the 2023 dataset to identify potential data preparation needs
+tibble(
+  Column = names(water23),
+  Data_Type = map_chr(water23, ~ class(.x)[1])
+)
+```
+
+### 2024 Dataset
+
+```{r}
+#| code-fold: true
+#| code-summary: "Code"
+
+# Inspect sample records to understand the 2024 dataset's contents
+head(water24)
+
+# Display the number of rows and columns in the 2024 dataset
+dim(water24)
+
+# Check variable types of the 2024 dataset to identify potential data preparation needs
+tibble(
+  Column = names(water24),
+  Data_Type = map_chr(water24, ~ class(.x)[1])
+)
+```
+
+### 2025 Dataset
+
+```{r}
+#| code-fold: true
+#| code-summary: "Code"
+
+# Inspect sample records to understand the 2025 dataset's contents
+head(water25)
+
+# Display the number of rows and columns in the 2025 dataset
+dim(water25)
+
+# Check variable types of the 2025 dataset to identify potential data preparation needs
+tibble(
+  Column = names(water25),
+  Data_Type = map_chr(water25, ~ class(.x)[1])
+)
+```
+
+### Comparison of Dataset Dimensions
+
+```{r}
+#| code-fold: true
+#| code-summary: "Code"
+
+# Compare the size of the three annual datasets before combining
+# them. This helps us understand how much data is available for
+# each year and identify differences in the number of records
+# or variables that may affect the subsequent analysis
+dataset_summary <- tibble(
+  # Label each dataset with its corresponding sampling year
+  Year = c(2023, 2024, 2025),
+
+  #Count the rows to compare the number of observations
+  # available in each year's dataset
+  Rows = c(
+    nrow(water23),
+    nrow(water24),
+    nrow(water25)
+  ),
+
+  # Count the columns to check whether the datasets contain
+  # the same number of variables before they are combined
+  Columns = c(
+    ncol(water23),
+    ncol(water24),
+    ncol(water25)
+  )
+)
+
+# Display the comparison to inspect the datasets before
+# proceeding with data preparation and analysis
+dataset_summary
+```
+
+### Merge the Datasets
+
+The three datasets have matching column structures, allowing them to be combined into a single dataset. A year identifier is added to each record to preserve its origin and support comparisons over time.
+
+```{r}
+#| code-fold: true
+#| code-summary: "Code"
+
+# Combine the three annual datasets into one dataset so that
+# water quality measurements can be analysed consistently
+# across the 2023–2025 study period
+water_all <- bind_rows(
+  "2023" = water23,
+  "2024" = water24,
+  "2025" = water25,
+  .id = "year"
+) |>
+  
+  # Convert the year to an integer so it can be used consistently
+  # when grouping observations and comparing water quality
+  # measurements across the three years
+  mutate(year = as.integer(year))
+
+# Inspect the combined dataset's structure, including its
+# variables and data types, to check that it is ready for
+# subsequent cleaning and analysis 
+glimpse(water_all)
+```
+
+The dimensions of the combined dataset are `r nrow(water_all)` rows and `r ncol(water_all)` columns.
+
+## Data Exploration
+
+### Sampling Locations and Coverage
+
+@fig-sample-material compares the number of observations recorded for each sample material type between 2023 and 2025. To keep the chart readable, only material types with more than 3,000 observations across the three years were included. This threshold was used to focus on frequently recorded sample types; less common types were excluded from the figure but retained in the dataset for other analyses.
+
+```{r}
+#| code-fold: true
+#| code-summary: "Code"
+#| label: fig-sample-material
+#| fig-cap: "Sample Material Type and Coverage"
+
+# Count the observations recorded for each sample material type
+# in each year. This helps us understand the composition of the
+# combined dataset
+water_all |>
+  count(year, sampleMaterialType) |>
+  group_by(sampleMaterialType) |>
+  
+  # Retain material types with more than 3,000 observations
+  # across all three years. This threshold keeps the plot readable
+  # by focusing on the more frequently recorded sample types
+  filter(sum(n) > 3000) |>
+  ungroup() |>
+  
+  # Compare annual observation counts for each retained material
+  # type to see how their representation varies between years.
+  # Reorder the categories by their total counts for easier reading
+  ggplot(
+    aes(
+      x = n,
+      y = forcats::fct_reorder(sampleMaterialType, n, sum),
+      fill = factor(year)
+    )
+  ) +
+  geom_col(position = "dodge") +
+  scale_x_continuous(labels = scales::comma) +
+  labs(
+    x = "Observations",
+    y = NULL,
+    fill = "Year"
+  )
+```
+
+```{r}
+#| echo: false
+#| message: false
+
+# Identify sampling sites with records in all three study years.
+# Focusing on these sites helps us compare water quality over time
+# at locations that were represented throughout the 2023–2025 period.
+shared_sites <- water_all|>
+  filter(!is.na(samplingPoint.notation)) |>
+  distinct(samplingPoint.notation, year) |>
+  count(samplingPoint.notation, name = "years_sampled") |>
+  filter(years_sampled == 3) |>
+  pull(samplingPoint.notation)
+```
+
+Only a total of `r length(shared_sites)` sampling sites were monitored consistently across the three years (2023–2025), allowing comparisons of water quality at the same locations over time. @fig-shared-sites-map shows the geographical distribution of these sampling sites across the study region.
+
+```{r}
+#| code-fold: true
+#| code-summary: "Code"
+#| label: fig-shared-sites-map
+#| fig-cap: "Geographical distribution of sampling sites monitored consistently across 2023–2025."
+#| fig-width: 10
+#| fig-height: 7
+#| out-width: 100%
+
+# Extract the locations of sites identified as having records
+# in all three study years. We use their coordinates to visualise
+# where the shared sites are distributed across the study region
+site_locations <- water_all |>
+  filter(samplingPoint.notation %in% shared_sites) |>
+  filter(
+    !is.na(samplingPoint.longitude),
+    !is.na(samplingPoint.latitude)
+  ) |>
+  
+  # Keep each site-coordinate combination only once so that
+  # repeated measurements do not create duplicate map points
+  distinct(
+    samplingPoint.notation,
+    samplingPoint.longitude,
+    samplingPoint.latitude
+  )
+
+# Map the sampling sites to show their geographical distribution.
+# This helps us assess the spatial coverage of the sites included
+# in the analysis, rather than relying on counts alone
+ggplot(
+  site_locations,
+  aes(
+    x = samplingPoint.longitude,
+    y = samplingPoint.latitude
+  )
+) +
+  geom_point(
+    colour = "steelblue",
+    alpha = 0.7,
+    size = 1.5
+  ) +
+  
+  # Use a map coordinate system to display the locations
+  coord_quickmap() +
+  labs(
+    x = "Longitude",
+    y = "Latitude"
+  ) +
+  theme_minimal()
+```
+
+### Determinands, Measurement Units and Observation Frequencies
+
+The datasets contain a range of water-quality determinands and measurement units. @tbl-top-determinands presents the 15 most frequently recorded determinand and unit combinations, ranked by the number of observations.
+
+```{r}
+#| code-fold: true
+#| code-summary: "Code"
+#| label: tbl-top-determinands
+#| tbl-cap: "Top 15 Determinands and Units by Number of Observations"
+
+# Count the observations for each determinand and measurement unit,
+# then rank them from most to least frequently recorded. This helps
+# us understand which water quality measurements dominate the
+# dataset before selecting indicators for the main analysis
+water_all |>
+  count(`determinand.prefLabel`, unit, sort = TRUE) |>
+  slice_head(n = 15) |>
+  
+  # Format the results as a readable table, adding commas to large
+  # observation counts so differences in recording frequency are
+  # easier to compare
+  kable(
+    col.names = c("Determinand", "Unit", "Observations"),
+    format.args = list(big.mark = ","),
+  )
+```
+
+## Data Quality Verification
+
+### Overview of Data Quality
+
+This section checks for censored results, coded/text entries to identify potential issues before analysis.
+
+```{r}
+#| code-fold: true
+#| code-summary: "Code"
+#| label: tbl-data-quality
+#| tbl-cap: "Data-quality indicators by year"
+
+# Assess data quality separately for each year to identify
+# whether censored and non-numeric results are common in the
+# datasets and may affect the subsequent analysis
+water_all |>
+  group_by(year) |>
+  
+  # Calculate the proportion of results that may need special
+  # treatment before statistical analysis
+  summarise(
+    
+    # Identify results reported below the detection limit,
+    # such as "<0.1". These are censored measurements because
+    # the exact concentration is not reported
+    pct_censored = mean(
+      str_starts(result, "<"),
+      na.rm = TRUE
+    ),
+    
+    # Identify results recorded as coded or text entries rather
+    # than numerical measurements. These may not be suitable
+    # for calculations such as medians or statistical tests
+    pct_non_numeric = mean(
+      unit %in% c("Coded Result", "Text Result")
+    )
+  ) |>
+  
+  # Convert the proportions to percentages so that the extent
+  # of these data-quality issues is easier to interpret
+  mutate(
+    across(
+      starts_with("pct"),
+      ~ percent_format(accuracy = 0.1)(.x)
+    )
+  ) |>
+  
+  # Present the annual data-quality checks in a readable table
+  # so that differences between years can be compared
+  kable(
+    col.names = c(
+      "Year",
+      "Below detection limit (<)",
+      "Coded/text results"
+    ),
+  )
+```
+
+Key observations:
+
+- Censored results: Results column contains censored data (e.g. \<0.1, below the lab detection limit)
+
+- Coded/text results: Such entries may represent codes like “No flow / No sample” rather than numerical measurements.
+
+### Missing Values
+
+This check counts missing values in each column to determine whether any data is incomplete.
+
+```{r}
+#| code-fold: true
+#| code-summary: "Code"
+#| label: tbl-missing-values
+#| tbl-cap: "Missing values by column"
+
+# Count missing values in every column of the combined dataset.
+# This helps us identify variables with incomplete data before
+# calculating summaries, producing plots, or conducting tests
+water_all |>summarise(
+    across(
+      everything(),
+      ~ sum(is.na(.x))
+    )
+  ) |>
+  
+  # Reshape the results into a two-column table so each variable
+  # appears on its own row, making missing-value patterns easier
+  # to inspect and compare across variables
+  pivot_longer(
+    cols = everything(),
+    names_to = "Column",
+    values_to = "Missing_Values"
+  ) |>
+  
+  # Display the missing-value counts in a readable table
+  kable(
+    col.names = c("Column", "Number of Missing Values")
+  )
+```
+
+Key observation: There are no missing values in the dataset
+
+### Duplicate Records
+
+This check identifies exact duplicate rows that could inflate observation counts and affect the analysis.
+
+```{r}
+#| code-fold: true
+#| code-summary: "Code"
+#| label: tbl-duplicate-check
+#| tbl-cap: "Duplicate row check"
+
+# Check for exact duplicate rows in the combined dataset.
+# Duplicate records could cause some measurements to be counted
+# more than once, potentially affecting annual summaries and
+# statistical comparisons
+duplicate_count <- sum(duplicated(water_all))
+
+# Display the duplicate count in a table to aid further assessment
+tibble(
+  Check = "Exact duplicate rows",
+  Number_of_Duplicates = duplicate_count
+) |>
+  kable()
+```
+
+Key observation: There are no duplicate rows in the dataset
+
+# Data Processing
+
+## Data Cleaning
+
+### Rename Columns
+
+The original column names were renamed to shorter, descriptive, and consistent names to improve code readability and simplify subsequent data processing and analysis.
+
+```{r}
+#| code-fold: true
+#| code-summary: "Code"
+#| label: tbl-column-renaming
+#| tbl-cap: "Original and Renamed Dataset Columns"
+
+
+# Rename selected columns to shorter, more consistent names.
+# The original dataset uses long names with mixed naming styles,
+# so standardising them makes the code easier to read and reduces
+# the need to repeatedly reference lengthy column names
+water_quality <- water_all |>
+  rename(
+    sampling_site_code = `samplingPoint.notation`,
+    sampling_site_name = `samplingPoint.prefLabel`,
+    longitude = `samplingPoint.longitude`,
+    latitude = `samplingPoint.latitude`,
+    region = `samplingPoint.region`,
+    subarea = `samplingPoint.subArea`,
+    sampling_site_type = `samplingPoint.samplingPointType`,
+    sample_material_type = sampleMaterialType,
+    sampling_purpose = samplingPurpose,
+    determinand = `determinand.prefLabel`
+  )
+
+
+# Create a reference table linking each original column name
+# to its new name. This documents the changes and helps readers
+# understand the variables used throughout the remaining analysis
+column_names <- tibble(
+  Original_Name = c(
+    "samplingPoint.notation",
+    "samplingPoint.prefLabel",
+    "samplingPoint.longitude",
+    "samplingPoint.latitude",
+    "samplingPoint.region",
+    "samplingPoint.subArea",
+    "samplingPoint.samplingPointType",
+    "sampleMaterialType",
+    "samplingPurpose",
+    "determinand.prefLabel"
+  ),
+  New_Name = c(
+    "sampling_site_code",
+    "sampling_site_name",
+    "longitude",
+    "latitude",
+    "region",
+    "subarea",
+    "sampling_site_type",
+    "sample_material_type",
+    "sampling_purpose",
+    "determinand"
+  )
+)
+
+# Display the original and new names side by side so readers
+# can see how the dataset's column names were standardised
+knitr::kable(
+  column_names,
+  col.names = c("Original Column Name", "New Column Name")
+)
+```
+
+### Remove Coded/Text Results
+
+Text-based results e.g No flow or No sample, were removed to retain observations with usable measurement data for subsequent analysis.
+
+```{r}
+#| code-fold: true
+#| code-summary: "Code"
+
+# Remove records labelled as coded or text results so that
+# the working dataset focuses on numerical measurements
+# suitable for the planned statistical summaries and tests
+water_quality <- water_quality |>
+    filter(!unit %in% c("Coded Result", "Text Result"))
+```
+
+After removing coded and text-based results, `r nrow(water_quality)` observations remained for further analysis.
+
+### Convert Results to Numeric Values
+
+Results below the detection limit were assigned half their reported detection limit by multiplying the extracted numerical values by 0.5, providing an estimated value for analysis.
+
+```{r}
+#| code-fold: true
+#| code-summary: "Code"
+
+# Convert water quality results into numeric values so they can
+# be used in statistical summaries, visualisations, and tests.
+# We also flag results below the detection limit because their
+# exact concentrations are unknown and require special handling
+water_quality <- water_quality |>
+  mutate(
+    
+    # Identify results reported below the detection limit,
+    # such as "<0.1", so they can be treated separately
+    below_detection_limit = str_starts(result, "<"),
+    
+    # Extract the numeric part of each result for analysis
+    numeric_result = parse_number(result),
+    
+    # Estimate censored values using the chosen fraction of the
+    # detection-limit value, rather than treating them as exact
+    numeric_result = if_else(
+      below_detection_limit,
+      numeric_result * CENSOR_FACTOR,
+      numeric_result
+    )
+  )
+# Identify non-missing results that could not be converted into
+# numbers. Reviewing these entries helps reveal unexpected data
+# formats that may need attention before the analysis proceeds
+water_quality |>
+  filter(is.na(numeric_result) & !is.na(result)) |>
+  count(result, sort = TRUE) |>
+  head(10)
+```
+
+### Remove Rows with Missing Numeric Results
+
+Rows with missing numeric water quality measurements were removed to retain usable observations for subsequent analysis.
+
+```{r}
+#| code-fold: true
+#| code-summary: "Code"
+
+# Remove records without usable numeric measurements so that
+# subsequent summaries and statistical analyses can work with
+# valid numerical results
+water_quality <- water_quality |>
+  filter(!is.na(numeric_result))
+
+# Report the number of rows remaining after cleaning and compare
+# it with the original combined dataset to show the extent of
+# records retained at this stage of data preparation
+cat(
+  "Rows after cleaning:",
+  scales::comma(nrow(water_quality)),
+  "of",
+  scales::comma(nrow(water_all))
+)
+```
+
+### Parse Timestamps and Derive Month
+
+Sampling timestamps were converted into a date-time format, and the corresponding month were derived to support the analysis of temporal variations in water quality.
+
+```{r}
+#| code-fold: true
+#| code-summary: "Code"
+
+# Convert sampling timestamps into date-time values and extract
+# the month of each observation. This prepares the data for
+# monthly analysis
+water_quality <- water_quality |>
+  
+  # Convert the original sampling timestamp into a date-time
+  # format so its date components can be analysed
+  mutate(
+    sampling_datetime = ymd_hms(phenomenonTime),
+    
+    # Extract the month as a labelled value (Jan, Feb, etc.)
+    # to support comparisons of water quality across the year
+    sampling_month = month(sampling_datetime, label = TRUE)
+  )
+```
+
+### Extract Sample IDs
+
+Sample identifiers were extracted from the original ID column to help link different determinand measurements originating from the same water sample.
+
+```{r}
+#| code-fold: true
+#| code-summary: "Code"
+
+# Extract the numeric sample identifier from the original ID field.
+# This creates a simpler sample ID that can help identify and
+# match measurements belonging to the same sample in later analyses
+water_quality <- water_quality |>
+  mutate(
+    sample_id = str_extract(id, "(?<=sample/)\\d+")
+  )
+```
+
+## Prepare the River Water Quality Analysis Subset
+
+The cleaned dataset was filtered to include river water samples, the seven selected water quality indicators, and sampling sites monitored across all three years (2023–2025). @tbl-river-analysis-subset outlines observations for each indicator were summarized by year to assess data coverage.
+
+```{r}
+#| code-fold: true
+#| code-summary: "Code"
+#| label: tbl-river-analysis-subset
+#| tbl-cap: "Observations in the River Water Quality Analysis Subset"
+
+# Define the seven water quality indicators selected to answer
+# the research question. Focusing on these indicators keeps the
+# analysis centred on nutrients, oxygen conditions, BOD,
+# temperature, and pH
+core_water_quality_indicators <- c(
+  "Nitrate as N",
+  "Orthophosphate, reactive as P",
+  "Ammoniacal Nitrogen as N",
+  "Oxygen, Dissolved, % Saturation",
+  "BOD : 5 Day ATU",
+  "Temperature of Water",
+  "pH"
+)
+
+# Create the analysis dataset by retaining river-water samples
+# for the seven selected indicators at sites with records in all
+# three study years. This supports comparisons across 2023–2025
+river_water_quality <- water_quality |>
+  filter(
+    sample_material_type == "RIVER / RUNNING SURFACE WATER",
+    determinand %in% core_water_quality_indicators,
+    sampling_site_code %in% shared_sites
+  ) |>
+  mutate(
+    determinand = factor(
+      determinand,
+      levels = core_water_quality_indicators
+    )
+  )
+
+# Set a consistent indicator order so the indicators appear
+# in the same sequence in subsequent tables and visualisations.
+river_water_quality |>
+  count(determinand, year) |>
+  pivot_wider(
+    names_from = year,
+    values_from = n,
+    values_fill = 0
+  ) |>
+  
+  # Display the annual observation counts in a readable table.
+  knitr::kable()
+```
+
+These seven indicators were selected to assess different aspects of river water quality. Nitrate, orthophosphate and ammoniacal nitrogen indicate nutrient levels and potential pollution. Dissolved oxygen and biochemical oxygen demand (BOD) help assess oxygen conditions and organic pollution, while pH and temperature provide information on the water’s chemical and thermal conditions. Together, these indicators provide a basis for examining changes in river water quality between 2023 and 2025 (UKTAG, 2008a; UKTAG, 2008b; Council of the European Communities, 1991)
+
+# Modelling and Analysis
+
+## Year-on-Year Summary
+
+The median and interquartile range (IQR) of each water quality indicator were calculated for 2023, 2024, and 2025 to summarize annual patterns and compare changes in recorded water quality measurements over time. @tbl-annual-water-summary presents the annual summary statistics, while @fig-annual-water-boxplots shows how the measurements were distributed across the three years
+
+```{r}
+#| code-fold: true
+#| code-summary: "Code"
+#| label: tbl-annual-water-summary
+#| tbl-cap: "Annual Summary of Water Quality Measurements"
+
+# Calculate annual summary statistics for each indicator and unit.
+# The median describes the typical measurement, while the first
+# and third quartiles show the middle 50% of observed values.
+# These statistics help us compare water quality across the years
+# without relying solely on averages that can be affected by extremes
+summary_table <- river_water_quality |>
+  group_by(determinand, unit, year) |>
+  summarise(
+    median = median(numeric_result, na.rm = TRUE),
+    first_quartile = quantile(numeric_result, 0.25, na.rm = TRUE),
+    third_quartile = quantile(numeric_result, 0.75, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# Combine the median and quartiles into one readable summary.
+# Using a consistent format makes annual values easier to compare
+# across indicators while retaining information about variability
+summary_table |>
+  mutate(
+    summary = sprintf(
+      "%.3g (%.3g–%.3g)",
+      median,
+      first_quartile,
+      third_quartile
+    )
+  ) |>
+  select(determinand, unit, year, summary) |>
+  
+  # Place each year in a separate column so changes over time
+  # can be compared directly for each indicator and measurement unit
+  pivot_wider(
+    names_from = year,
+    values_from = summary
+  ) |>
+  
+  # Present the annual summaries with column headings
+  # for interpretation in the report
+  knitr::kable(
+    col.names = c("Determinand", "Unit", "2023", "2024", "2025"),
+  )
+```
+
+```{r}
+#| code-fold: true
+#| code-summary: "Code"
+#| label: fig-annual-water-boxplots
+#| fig-cap: "Distribution of Water Quality Measurements Across Years"
+
+# Compare water quality measurements across the three study years.
+# We exclude zero and negative values because they cannot be shown
+# on a logarithmic axis
+river_water_quality |>
+  filter(numeric_result > 0) |>
+  ggplot(aes(factor(year), numeric_result, fill = factor(year))) +
+  
+  # Use boxplots to compare annual medians, variability, and
+  # potential outliers for each water quality indicator
+  geom_boxplot(outlier.alpha = 0.15, show.legend = FALSE) +
+  
+  # Give each indicator its own panel and vertical scale because
+  # the indicators have different measurement ranges and units
+  facet_wrap(~determinand, scales = "free_y", ncol = 3) +
+  
+  # Apply a logarithmic scale to make differences across a wide
+  # range of positive measurements easier to visualise
+  scale_y_log10(
+    labels = scales::label_number(drop0trailing = TRUE)
+  ) +
+  
+  # Label the axes while keeping the year labels clear and simple.
+  labs(
+    x = NULL,
+    y = "Value (log scale)"
+  )
+```
+
+The annual summaries show that median nitrate and orthophosphate concentrations decreased between 2023 and 2025. Dissolved oxygen saturation increased slightly, while the median values of ammoniacal nitrogen and five-day biochemical oxygen demand remained stable. These changes describe the observed annual patterns
+
+## Are the Differences Between Years Significant?
+
+The Kruskal–Wallis test was used to assess whether water quality measurements differed across 2023, 2024 and 2025 (Kruskal and Wallis, 1952). The Benjamini–Hochberg method was applied to adjust p-values for multiple testing (Benjamini and Hochberg, 1995), while effect sizes were calculated to assess the magnitude of the differences. @tbl-kruskal-results presents the test results for each indicator. For indicators with significant differences, Dunn’s post-hoc test was used to identify which pairs of years differed (Dunn, 1964; @tbl-dunn-results).
+
+```{r}
+#| code-fold: true
+#| code-summary: "Code"
+#| label: tbl-kruskal-results
+#| tbl-cap: "Kruskal–Wallis Test Results by Water Quality Indicator"
+
+# Test whether the distributions of each water quality indicator
+# differ across 2023, 2024 and 2025. The Kruskal–Wallis test
+# provides a non-parametric comparison across the three years
+kruskal_results <- river_water_quality |>
+  mutate(year = factor(year)) |>
+  group_by(determinand) |>
+  kruskal_test(numeric_result ~ year) |>
+  
+  # Apply the Benjamini–Hochberg adjustment to account for
+  # multiple tests and reduce the risk of false-positive findings
+  adjust_pvalue(method = "BH")
+
+# Calculate an effect size for each indicator to assess how large
+# the differences between years are, alongside statistical
+# significance. This helps distinguish small differences from
+# potentially more substantial changes in water quality
+effect_results <- river_water_quality |>
+  mutate(year = factor(year)) |>
+  group_by(determinand) |>
+  kruskal_effsize(numeric_result ~ year)
+
+# Combine the test results with their corresponding effect sizes
+# so statistical significance and the magnitude of differences
+# can be examined together for each indicator
+kruskal_results |>
+  left_join(
+    select(effect_results, determinand, effsize, magnitude),
+    by = "determinand"
+  ) |>
+  
+  # Keep the key statistics needed to interpret the results
+  select(determinand, n, statistic, p.adj, effsize, magnitude) |>
+  
+  # Format adjusted p-values for readability in the report
+  mutate(
+    p.adj = format.pval(p.adj, digits = 3, eps = 1e-4)
+  ) |>
+  
+  # Present the statistical results and effect sizes in a
+  # consistent table for comparison across indicators
+  knitr::kable(
+    digits = 3,
+    col.names = c(
+      "Determinand",
+      "Sample Size",
+      "H Statistic",
+      "Adjusted p-value",
+      "Effect Size",
+      "Effect Magnitude"
+    ),
+  )
+```
+
+Pairwise follow-up (Dunn’s test) for indicators with a significant result:
+
+```{r}
+#| code-fold: true
+#| code-summary: "Code"
+#| label: tbl-dunn-results
+#| tbl-cap: "Dunn's Post-hoc Test Results Between Years"
+
+# Identify indicators that showed significant differences between years
+# in the overall Kruskal–Wallis tests.
+significant_determinand <- kruskal_results |>
+  filter(p.adj < 0.05) |>
+  pull(determinand)
+
+# Compare the years in pairs for each indicator with a significant
+# overall result, using adjusted p-values to account for multiple tests
+river_water_quality |>
+  filter(determinand %in% significant_determinand) |>
+  mutate(year = factor(year)) |>
+  group_by(determinand) |>
+  dunn_test(
+    numeric_result ~ year,
+    p.adjust.method = "BH"
+  ) |>
+  
+  # Retain the results needed to identify the year pairs that differ
+  select(
+    determinand,
+    group1,
+    group2,
+    statistic,
+    p.adj,
+    p.adj.signif
+  ) |>
+  
+  # Present the pairwise comparisons in a readable table
+  knitr::kable(
+    digits = 3,
+    col.names = c(
+      "Determinand",
+      "Year 1",
+      "Year 2",
+      "Test Statistic",
+      "Adjusted p-value",
+      "Significance"
+    ),
+  )
+```
+
+The Kruskal–Wallis test showed significant differences across years for six of the seven indicators (adjusted p \< 0.05). Nitrate and orthophosphate had the largest effect sizes (0.017 and 0.014, respectively), although both were small. BOD showed no significant difference (p = 0.81). Dunn’s post-hoc tests showed that most significant differences involved 2025, while water temperature differed across all three year-to-year comparisons. Overall, the findings indicate temporal variation, but the small effect sizes suggest that the magnitude of these differences was limited.
+
+## Seasonal Patterns in Water Quality
+
+Monthly median values were calculated for water temperature and dissolved oxygen saturation to examine seasonal patterns across 2023, 2024, and 2025.
+
+```{r}
+#| code-fold: true
+#| code-summary: "Code"
+#| label: fig-temperature-oxygen-seasonal
+#| fig-cap: "Monthly Patterns in Water Temperature and Dissolved Oxygen"
+
+
+# Select water temperature and dissolved oxygen saturation to
+# investigate how these indicators vary throughout the year
+# and whether their monthly patterns differ across study years
+river_water_quality |>
+  filter(
+    determinand %in% c(
+      "Temperature of Water",
+      "Oxygen, Dissolved, % Saturation"
+    )
+  ) |>
+  
+  # Calculate the median for each month, year and indicator.
+  # Monthly medians summarise typical conditions while reducing
+  # the influence of unusually high or low individual readings
+  group_by(determinand, year, sampling_month) |>
+  summarise(
+    median = median(numeric_result, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  
+  # Plot the monthly medians as lines so seasonal patterns and
+  # differences between years can be compared visually
+  ggplot(
+    aes(
+      x = sampling_month,
+      y = median,
+      colour = factor(year),
+      group = year
+    )
+  ) +
+  geom_line(linewidth = 1) +
+  geom_point() +
+  
+  # Separate the indicators into panels because they use different
+  # measurement scales and should not share the same y-axis
+  facet_wrap(~determinand, scales = "free_y", ncol = 1) +
+  
+  # Label the axes and year colours to make the comparisons clear
+  labs(
+    x = "Month",
+    y = "Monthly median",
+    colour = "Year",
+  )
+```
+
+Seasonal variation occurs in water temperature, with monthly medians generally increasing towards summer and decreasing towards winter. Dissolved oxygen saturation varies across months and years, with more noticeable declines in some months of 2023 and 2025.
+
+## Catchment (Sub-area) Comparison
+
+Nutrient concentrations were compared across sampling sub-areas to identify geographical differences in river water quality. Median concentrations of ammoniacal nitrogen, orthophosphate and nitrate were calculated for each sub-area and year. @fig-nutrients-by-subarea compares the median concentrations across years, while @tbl-catchment-changes summarises the absolute and percentage changes between 2023 and 2025.
+
+```{r}
+#| code-fold: true
+#| code-summary: "Code"
+#| label: fig-nutrients-by-subarea
+#| fig-cap: "Median Nutrient Concentrations by Sub-area and Year"
+
+# Select the three nutrient indicators to compare their typical
+# concentrations across sub-areas and study years
+river_water_quality |>
+  filter(
+    determinand %in% c(
+      "Ammoniacal Nitrogen as N",
+      "Orthophosphate, reactive as P",
+      "Nitrate as N"
+    )
+  ) |>
+  
+  # Retain sub-areas with at least five distinct sampling sites
+  # to provide a minimum level of geographical coverage
+  group_by(subarea) |>
+  filter(n_distinct(sampling_site_code) >= 5) |>
+  
+  # Calculate the median concentration for each indicator,
+  # sub-area and year. These summaries make it easier to compare
+  # typical nutrient levels without relying on individual readings
+  group_by(determinand, subarea, year) |>
+  summarise(
+    median = median(numeric_result, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  
+  # Plot the annual medians side by side for each sub-area.
+  # Reordering the sub-areas by their median values improves
+  # readability, while separate panels allow each nutrient
+  # to be examined independently
+  ggplot(
+    aes(
+      x = median,
+      y = forcats::fct_reorder(subarea, median),
+      fill = factor(year)
+    )
+  ) +
+  geom_col(position = "dodge") +
+  
+  # Give each nutrient its own horizontal scale because their
+  # concentration ranges may differ
+  facet_wrap(~determinand, scales = "free_x") +
+  labs(
+    x = "Median concentration (mg/L)",
+    y = "Sub-area",
+    fill = "Year"
+  )
+```
+
+```{r}
+#| code-fold: true
+#| code-summary: "Code"
+#| label: tbl-catchment-changes
+#| tbl-cap: "Changes in Median Nutrient Concentrations by Sub-area, 2023–2025"
+
+# Select the three nutrient indicators and the first and final
+# study years to assess how their median concentrations changed
+# between 2023 and 2025 across the study sub-areas
+catchment_changes <- river_water_quality |>
+  filter(
+    determinand %in% c(
+      "Nitrate as N",
+      "Orthophosphate, reactive as P",
+      "Ammoniacal Nitrogen as N"
+    ),
+    year %in% c(2023, 2025)
+  ) |>
+  
+  # Retain sub-areas represented by at least five distinct
+  # sampling sites, helping avoid comparisons based on very
+  # limited geographical coverage
+  group_by(subarea) |>
+  filter(n_distinct(sampling_site_code) >= 5) |>
+  ungroup() |>
+  
+  # Calculate the median concentration for each nutrient
+  # in each sub-area and year, providing a summary for comparison
+  group_by(subarea, determinand, year) |>
+  summarise(
+    median_concentration = median(
+      numeric_result,
+      na.rm = TRUE
+    ),
+    .groups = "drop"
+  ) |>
+  
+  # Place the 2023 and 2025 medians in separate columns so
+  # changes over the study period can be calculated directly
+  pivot_wider(
+    names_from = year,
+    values_from = median_concentration,
+    names_prefix = "year_"
+  ) |>
+  
+  # Calculate the absolute and percentage changes between
+  # 2023 and 2025. Percentage change is left undefined when
+  # the 2023 median is missing or zero
+  mutate(
+    absolute_change = year_2025 - year_2023,
+    percentage_change = if_else(
+      !is.na(year_2023) & year_2023 != 0,
+      (absolute_change / year_2023) * 100,
+      NA_real_
+    )
+  ) |>
+  
+  # Arrange the results by indicator and sub-area to make
+  # geographical comparisons easier to follow
+  arrange(determinand, subarea)
+
+catchment_changes |>
+  
+  # Round numerical values to three decimal places and display
+  # the results in a table for interpretation
+  mutate(
+    across(
+      where(is.numeric),
+      ~ round(.x, 3)
+    )
+  ) |>
+  kable(
+    col.names = c(
+      "Sub-area",
+      "Indicator",
+      "2023 Median",
+      "2025 Median",
+      "Absolute Change",
+      "Change (%)"
+    )
+  )
+```
+
+Median nutrient concentrations varied between the two sub-areas and across the three years. Wear & Tees generally recorded higher concentrations than Northumberland & Tyne for all three nutrient indicators.
+
+## Spatial View of Ammonia Levels
+
+The median ammoniacal nitrogen concentration was calculated for each sampling site and year. The plot uses sampling coordinates to show the geographical distribution of ammonia levels and compare patterns across 2023, 2024, and 2025.
+
+```{r}
+#| code-fold: true
+#| code-summary: "Code"
+#| label: fig-ammonia-spatial-distribution
+#| fig-cap: "Spatial Distribution of Median Ammoniacal Nitrogen Levels by Sampling Site and Year"
+
+# Calculate the median ammoniacal nitrogen concentration at each
+# sampling site for each year. Using the median summarises the
+# typical recorded level at each location while reducing the
+# influence of unusually high or low individual measurements
+site_medians <- river_water_quality |>
+  filter(determinand == "Ammoniacal Nitrogen as N") |>
+  group_by(sampling_site_code, year, longitude, latitude) |>
+  summarise(
+    median = median(numeric_result, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# Map the site-level medians to examine how ammoniacal nitrogen
+# concentrations vary geographically and between study years.
+# Each point represents a sampling site, with its colour showing
+ggplot(site_medians, aes(longitude, latitude, colour = median)) +
+  geom_point(alpha = 0.8, size = 1.8) +
+  
+  # Apply a logarithmic colour scale to make differences across
+  # a wide range of positive concentrations easier to distinguish
+  scale_colour_viridis_c(trans = "log10", option = "plasma") +
+  
+  # Adjust the map's aspect ratio to make the spatial display
+  # more geographically representative
+  coord_quickmap() +
+  
+  # Display each year in a separate panel to support comparison
+  # of the spatial patterns across 2023, 2024, and 2025
+  facet_wrap(~year) +
+  labs(
+    x = "Longitude",
+    y = "Latitude",
+    colour = "Ammonia level"
+  )
+```
+
+Higher concentrations appear concentrated in some sites, particularly in the south-eastern part of the mapped area, while lower levels occur at other locations. The overall spatial pattern appears broadly similar across the three years, although concentrations vary between sites. This highlights the importance of continued monitoring at locations with elevated levels
+
+## Relationships Between Indicators
+
+Measurements from the same water sample were matched using sample_id to examine relationships between water quality indicators. Spearman correlation was used to assess the strength and direction of these relationships.
+
+```{r}
+#| code-fold: true
+#| code-summary: "Code"
+#| fig-width: 10
+#| fig-height: 8
+#| out-width: 100%
+#| label: fig-water-quality-correlation
+#| fig-cap: "Spearman Correlation Matrix of Water Quality Indicators"
+
+# Prepare the data for correlation analysis by retaining records
+# with valid sample IDs and finite numeric results. We then
+# summarise repeated measurements for each sample and indicator
+# so that each sample contributes one value per indicator
+correlation_wide <- river_water_quality |>
+  filter(
+    !is.na(sample_id),
+    !is.na(numeric_result),
+    is.finite(numeric_result)
+  ) |>
+  group_by(sample_id, determinand) |>
+  summarise(
+    numeric_result = mean(numeric_result),
+    .groups = "drop"
+  ) |>
+  
+  # Arrange the data so each indicator becomes a column.
+  # This format allows us to calculate correlations between
+  # the indicators using their measurements within samples
+  pivot_wider(
+    names_from = determinand,
+    values_from = numeric_result
+  )
+
+# Calculate pairwise Spearman correlations between the numeric
+# indicators. This method assesses whether indicators tend to
+# increase or decrease together in a monotonic relationship.
+# Pairwise complete observations allow each correlation to use
+# samples with valid values for that particular pair of indicators
+correlation_matrix <- correlation_wide |>
+  select(-sample_id) |>
+  select(where(is.numeric)) |>
+  cor(
+    method = "spearman",
+    use = "pairwise.complete.obs"
+  )
+
+# Convert the correlation matrix into a long-format table so
+# each indicator pair and its correlation coefficient can be
+# plotted as an individual tile in the heatmap
+correlation_data <- as.data.frame(as.table(correlation_matrix)) |>
+  rename(
+    Indicator1 = Var1,
+    Indicator2 = Var2,
+    Correlation = Freq
+  ) |>
+  filter(is.finite(Correlation))
+
+# Visualise the correlation heatmap.
+# The colours show negative and positive associations, while
+# the labels provide the correlation coefficient for each pair
+ggplot(
+  correlation_data,
+  aes(x = Indicator1, y = Indicator2, fill = Correlation)
+) +
+  geom_tile(color = "white") +
+  geom_text(aes(label = round(Correlation, 2)), size = 3) +
+  scale_fill_gradient2(
+    low = "#3B4CC0",
+    mid = "white",
+    high = "#B40426",
+    midpoint = 0,
+    limits = c(-1, 1),
+    name = "Spearman\ncorrelation"
+  ) +
+  
+  # Keep the tiles square so the matrix is easier to read
+  coord_fixed() +
+  labs(
+    x = NULL,
+    y = NULL
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    panel.grid = element_blank()
+  )
+```
+
+Nutrient indicators tend to be positively related, while higher nutrient levels are associated with lower dissolved oxygen saturation. Most other relationships are weak. However, correlation does not imply causation.
+
+# Evaluation
+
+## Key Findings
+
+The analysis identified the following key findings between 2023 and 2025:
+
+- Nitrate: Median concentration decreased from 1.49 mg/L in 2023 to 0.843 mg/L in 2025.
+
+- Orthophosphate: Median concentration decreased from 0.021 mg/L in 2023 to 0.014 mg/L in 2025.
+
+- Ammoniacal nitrogen: Median concentration remained stable at 0.015 mg/L across all three years.
+
+- Biochemical oxygen demand (BOD): Median concentration remained at 1.5 mg/L, with no statistically significant difference between years.
+
+- Dissolved oxygen saturation: Median increased slightly from 98.8% in 2023 to 99.4% in 2025.
+
+- pH: Median increased slightly from 7.97 to 8.03.
+
+- Water temperature: Median decreased from 10°C in 2023 to 9.3°C in 2025, after reaching 8.9°C in 2024.
+
+- Statistical significance: Six of the seven indicators showed statistically significant differences across years, but all effect sizes were small (@tbl-kruskal-results).
+
+- Geographical variation: @fig-nutrients-by-subarea shows that Wear & Tees generally recorded higher median nutrient concentrations than Northumberland & Tyne.
+
+## Did Water Quality in North England Improve or Decline?
+
+Overall, water quality showed some signs of improvement, particularly the reductions in median nitrate and orthophosphate concentrations and the slight increase in dissolved oxygen saturation. However, the small effect sizes and stability of other indicators mean that the results do not demonstrate a clear, overall improvement across all aspects of water quality.
+
+## Which Catchments and Pollutants Drove the Change?
+
+The comparison between 2023 and 2025 showed that Wear & Tees experienced the largest reductions in orthophosphate (52.5%) and ammoniacal nitrogen (54.5%). Nitrate decreased by 9.5% in Wear & Tees, compared with 47.8% in Northumberland & Tyne. Orthophosphate also decreased by 20.0% in Northumberland & Tyne, while ammoniacal nitrogen remained unchanged. Overall, Wear & Tees recorded the greatest reductions in two of the three nutrient indicators, while Northumberland & Tyne recorded the larger reduction in nitrate
+
+## Limitations
+
+- Differences in sampling coverage: The main analysis was restricted to sampling sites with records in all three years (2023–2025), allowing comparisons at locations monitored throughout the study period. However, the number of observations collected at each site may still vary between years. This means that some observed differences may reflect changes in sampling coverage as well as changes in water quality.
+
+- Repeated measurements: The Kruskal–Wallis test assumes independent observations, but some sampling sites were measured repeatedly between 2023 and 2025. Measurements from the same site may be related, so this assumption may not hold. A method that accounts for repeated measurements would provide a more appropriate comparison.
+
+- Ammoniacal nitrogen detection limits: The reported median of 0.015 mg/L is a substituted value rather than a direct measurement of the true concentration. The proportion of results below the detection limit increased from 22.7% in 2023 to 29.7% in 2025. Consequently, the apparent stability in the overall median and the reported reduction in Wear & Tees may partly reflect the treatment of results below the detection limit rather than a genuine change in ammonia levels.
+
+- Statistical significance and effect sizes: Although six indicators showed statistically significant differences between years, all effect sizes were small, suggesting that the magnitude of the differences was limited.
+
+- Correlation does not imply causation: Relationships between water quality indicators do not establish the causes of observed changes.
+
+- Limited geographical comparison: The catchment comparison focused on Northumberland & Tyne and Wear & Tees and examined three nutrient indicators. The findings may therefore not represent every catchment or all aspects of river water quality.
+
+## Where I Would Iterate
+
+If the analysis were to be repeated, I would use a statistical method that accounts for repeated measurements at the same sampling sites across years, such as a Friedman test or a mixed-effects model. I would also investigate how results below the detection limit affect the ammoniacal nitrogen findings, particularly the reported reduction in Wear & Tees. Finally, I would explore additional years of data to establish whether the observed changes represent longer-term patterns in river water quality.
+
+# Deployment
+
+## Tools and Technologies
+
+The analysis was carried out using R and Quarto, and the final report was produced as an HTML document. The report brings together the tables, graphs and statistical results, making it easier to explore changes in river water quality between 2023 and 2025. The code is included in collapsible sections so readers can view it when needed.
+
+## Recommendations
+
+The findings are intended for environmental researchers, water quality monitoring teams and other relevant stakeholders. The report communicates changes in nutrient concentrations, dissolved oxygen, temperature and other selected indicators to support the interpretation of water quality patterns across the study region.
+
+Based on the findings, the following recommendations are proposed:
+
+- Prioritise monitoring in Wear & Tees: The generally higher nutrient concentrations observed in this sub-area warrant further investigation to identify potential pollution sources and locations requiring closer monitoring.
+
+- Continue monitoring nutrient levels: Nitrate and orthophosphate concentrations should be monitored over time to determine whether the observed reductions persist and to identify any subsequent deterioration.
+
+- Improve the interpretation of ammoniacal nitrogen results: The treatment of measurements below detection limits should be considered when assessing changes in ammonia concentrations, as substituted values may affect the apparent trends.
+
+- Investigate relationships between indicators: The observed associations between nutrient concentrations and dissolved oxygen should guide further investigation, without assuming that correlation establishes causation.
+
+- Improve consistency in sampling: More consistent monitoring across sites and years would strengthen future comparisons and help distinguish genuine changes in water quality from differences in sampling coverage.
+
+These recommendations provide a basis for further investigation and monitoring decisions. The findings should be interpreted alongside the study's limitations, and additional evidence should be gathered before specific pollution sources or causes are established.
+
+# References
+
+- Chapman, P., Clinton, J., Kerber, R., Khabaza, T., Reinartz, T., Shearer, C. and Wirth, R. (2000). *CRISP-DM 1.0: Step-by-step data mining guide*. SPSS Inc.
+
+- Wickham, H., Çetinkaya-Rundel, M. and Grolemund, G. (2023). [*R for Data Science (2nd Edition)*](https://r4ds.hadley.nz/)
+
+- UK Technical Advisory Group (UKTAG) (2008a). [*UKTAG Environmental Standards and Conditions (Phase 1) – 2008*](https://www.daera-ni.gov.uk/publications/uktag-environmental-standards-and-conditions-phase-1-2008).
+
+- UK Technical Advisory Group (UKTAG) (2008b). [*UK Environmental Standards and Conditions (Phase 2) – 2008*](https://www.daera-ni.gov.uk/publications/uktag-environmental-standards-and-conditions-phase-2-2008).
+
+- Kruskal, W.H. and Wallis, W.A. (1952). [*Use of Ranks in One-Criterion Variance Analysis*](https://doi.org/10.1080/01621459.1952.10483441)
+
+- Benjamini, Y. and Hochberg, Y. (1995) 'Controlling the false discovery rate: A practical and powerful approach to multiple testing', *Journal of the Royal Statistical Society: Series B (Methodological)*, 57(1), pp. 289–300. <https://doi.org/10.1111/j.2517-6161.1995.tb02031.x>.
+
+- Dunn, O. J. (1964) 'Multiple comparisons using rank sums', *Technometrics*, 6(3), pp. 241–252. <https://doi.org/10.1080/00401706.1964.10490181>.
