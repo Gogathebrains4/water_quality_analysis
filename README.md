@@ -233,3 +233,10 @@ Based on the findings, the following actions are recommended:
 - Improve sampling consistency: Promote more consistent monitoring across sites and years to strengthen comparisons over time.
 
 These recommendations should be considered alongside the study's limitations. Further evidence is required before specific pollution sources or causes can be established.
+
+
+## Author
+
+**Wisdom Ogbeche**
+
+[GitHub Profile](https://github.com/Gogathebrains4)
