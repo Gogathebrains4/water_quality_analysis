@@ -79,6 +79,9 @@ Kruskal–Wallis tests are used to assess whether measurements differ between ye
 
 These tests treat observations as independent. Because sampling sites may be measured repeatedly, this assumption may not always hold; the report discusses this as a limitation. Statistical significance alone does not establish that a change is environmentally important.
 
+### Statistical tests
+![Correlation Matrix](images/stat)
+
 ### 6. Catchment and sub-area comparison
 
 Median measurements are compared across selected sub-areas, including changes between 2023 and 2025. Sub-areas are included in relevant comparisons only when they meet the minimum sampling-site threshold specified in the analysis. These comparisons are descriptive and may reflect differences in sampling coverage as well as environmental conditions.
@@ -86,6 +89,10 @@ Median measurements are compared across selected sub-areas, including changes be
 ### 7. Correlation analysis
 
 Spearman correlation analysis is used to explore associations between selected indicators. Correlations are interpreted as associations, not evidence that one indicator causes a change in another.
+
+### Correlation Matrix
+![Correlation Matrix](images/correlation_matrix.png)
+
 
 ## Tools and Technologies
 
