@@ -69,6 +69,9 @@ Results reported below a detection limit are flagged and assigned a value based 
 
 Annual summary statistics, including the median and first and third quartiles (Q1 and Q3), are calculated for each indicator to describe the centre and spread of the measurements.
 
+### Water Quality Indicators Summary
+![Water Quality Indicators Summary](<images/Indicators summary.png>)
+
 ### 4. Visualisation
 
 The report uses visualisations to explore annual distributions, seasonal patterns, spatial patterns, catchment differences, and relationships between selected indicators. Some distribution plots use a logarithmic scale and include positive measurements only, where required by the scale.
